@@ -106,7 +106,9 @@ sub loadZone {
 	my $spf = delete $data{__spf};
 
 	if ($spf) {
-		addRecord($fqdn, \%data, '@', $LONG, 'TXT', join(' ', 'v=spf1', @$spf, '-all'));
+		while (my ($rr, $entries) = each %$spf) {
+			addRecord($fqdn, \%data, $rr, $LONG, 'TXT', join(' ', 'v=spf1', @$entries, '-all'));
+		}
 	}
 
 	return \%data;
@@ -128,12 +130,18 @@ sub loadFileRecursively {
 
 	}
 
-	loadSPF($zoneData, $data, $fqdn);
+	loadSPF($zoneData, $data, $fqdn, $subdomain);
 
 	if ($data->{records}) {
 		my @records;
 		foreach my $rr (@{$data->{records}}) {
-			$rr->{name} .= ".$subdomain" if $subdomain;
+			if ($subdomain) {
+				if ($rr->{name} eq '@') {
+					$rr->{name} = $subdomain;
+				} else {
+					$rr->{name} .= ".$subdomain";
+				}
+			}
 
 			for (my $i = 0; defined $rr->{values}->[$i]; $i++) {
 				$rr->{values}->[$i] =~ s/\$domain\b/$fqdn/i;
@@ -167,9 +175,11 @@ sub loadFileRecursively {
 }
 
 sub loadSPF {
-	my ($zoneData, $data, $domain) = @_;
+	my ($zoneData, $data, $domain, $subdomain) = @_;
 
 	return unless $data->{spf};
+
+	my $spfRR = $subdomain // '@';
 
 	foreach my $entry (@{$data->{spf}}) {
 		if ($entry =~ /^ip4:(.*)/) {
@@ -181,9 +191,9 @@ sub loadSPF {
 				$ip = __resolveName($ip, $domain);
 			}
 
-			push @{$zoneData->{__spf}}, "ip4:$ip";
+			push @{$zoneData->{__spf}->{$spfRR}}, "ip4:$ip";
 		} else {
-			push @{$zoneData->{__spf}}, $entry;
+			push @{$zoneData->{__spf}->{$spfRR}}, $entry;
 		}
 	}
 
