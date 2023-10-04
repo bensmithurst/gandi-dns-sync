@@ -46,6 +46,7 @@ sub createDomain {
 
 	my $existing = rawRequest('GET', "livedns/domains/$fqdn");
 	if ($existing->code == HTTP_NOT_FOUND) {
+		print "Trying to add $fqdn into LiveDNS...\n";
 		request('POST', 'livedns/domains', { fqdn => $fqdn });
 	} elsif (!$existing->is_success) {
 		die "Querying $fqdn failed: ".$existing->as_string();
