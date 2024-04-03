@@ -108,7 +108,7 @@ sub loadZone {
 
 	if ($spf) {
 		while (my ($rr, $entries) = each %$spf) {
-			addRecord($fqdn, \%data, $rr, $LONG, 'TXT', join(' ', 'v=spf1', @$entries, '-all'));
+			addRecord($fqdn, \%data, $rr, $MEDIUM, 'TXT', join(' ', 'v=spf1', @$entries, '-all'));
 		}
 	}
 
