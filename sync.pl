@@ -63,6 +63,15 @@ sub syncDomain {
 
 	my $remoteData = loadRemoteZone($fqdn);
 
+	if ($localData->{__ignore}) {
+		foreach my $ignoredRR (@{$localData->{__ignore}}) {
+			if ($remoteData->{$ignoredRR}) {
+				$localData->{$ignoredRR} = $remoteData->{$ignoredRR};
+			}
+		}
+		delete $localData->{__ignore};
+	}
+
 	my @allKeys = (keys(%$localData), keys(%$remoteData));
 	my %allKeys = map { $_ => 1 } @allKeys;
 	my $changed;
@@ -129,6 +138,17 @@ sub loadFileRecursively {
 			loadFileRecursively($fqdn, $inc->{file}, $zoneData, $inc->{subdomain}, $depth + 1);
 		}
 
+	}
+
+	if ($data->{ignore}) {
+		foreach my $ignoredRR (@{$data->{ignore}}) {
+			my $name = $ignoredRR;
+			if ($subdomain) {
+				$name =~ s#/#.$subdomain/#;
+			}
+
+			push @{$zoneData->{__ignore}}, $name;
+		}
 	}
 
 	loadSPF($zoneData, $data, $fqdn, $subdomain);
