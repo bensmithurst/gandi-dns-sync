@@ -360,8 +360,12 @@ sub __rrset {
 	if ($type eq 'TXT') {
 		$values = [ map { /^".*"$/ ? $_ : "\"$_\"" } @$values ];
 	} elsif ($type eq 'ALIAS') {
-		push @rrs,
-			@{__rrset($name, $ttl, 'A', [ map { __resolveName('A', $_, $domain) } @$values ], $domain)};
+		foreach my $type ('A', 'AAAA') {
+			my @resolved = grep { defined $_ } map { __resolveName($type, $_, $domain) } @$values;
+			if (@resolved) {
+				push @rrs, @{__rrset($name, $ttl, $type, @resolved, $domain)};
+			}
+		}
 		return \@rrs;
 	}
 
@@ -393,22 +397,26 @@ sub __resolveName {
 
 	$name .= ".$domain" unless $name =~ /\.$/;
 
-	if (!defined $answerForName{$name}) {
-		my $binIp = scalar gethostbyname($name) or die "Failed to resolve $name";
-		my $ip = inet_ntoa($binIp);
-
+	if (!defined $answerForName{$name}{$type}) {
 		my $res = $resolver->query("$name.", $type);
-		$answerForName{$name} = [ $res->answer ];
+		if (!defined $res) {
+			die "Failed to resolve $name/$type";
+		}
+
+		$answerForName{$name}{$type} = [ $res->answer ];
 	}
 
-	foreach my $rr (@{$answerForName{$name}}) {
+	foreach my $rr (@{$answerForName{$name}{$type}}) {
 		if ($rr->type eq $type) {
 			# TODO: multiple answers?
+			if ($type eq 'AAAA') {
+				return $rr->address_short;
+			}
 			return $rr->address;
 		}
 	}
 
-	...
+	return undef;
 }
 
 sub __flattenZone {
