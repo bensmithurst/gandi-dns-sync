@@ -9,6 +9,7 @@ use HTTP::Status qw(HTTP_NO_CONTENT HTTP_NOT_FOUND);
 use IO::Dir;
 use JSON;
 use LWP::UserAgent;
+use Net::DNS::Resolver;
 use Readonly;
 use Socket;
 use Text::Diff;
@@ -21,6 +22,7 @@ Readonly my $LONG => 86400;
 
 my $KEY;
 my $ua;
+my $resolver = Net::DNS::Resolver->new;
 
 main();
 
@@ -210,7 +212,7 @@ sub loadSPF {
 			# crude IP check
 			unless ($ip =~ /^[\d\.]+$/) {
 				# assume hostname
-				$ip = __resolveName($ip, $domain);
+				$ip = __resolveName('A', $ip, $domain);
 			}
 
 			push @{$zoneData->{__spf}->{$spfRR}}, "ip4:$ip";
@@ -225,14 +227,17 @@ sub loadSPF {
 sub addRecord {
 	my ($domain, $data, $name, $ttl, $type, $values) = @_;
 
-	my $rr = __rrset($name, $ttl, $type, $values, $domain);
-	my $key = $rr->{rrset_name}.'/'.$rr->{rrset_type};
+	my $rrs = __rrset($name, $ttl, $type, $values, $domain);
 
-	if (my $existing = $data->{$key}) {
-		push @{$rr->{rrset_values}}, @{$existing->{rrset_values}};
+	foreach my $rr (@$rrs) {
+		my $key = $rr->{rrset_name}.'/'.$rr->{rrset_type};
+
+		if (my $existing = $data->{$key}) {
+			push @{$rr->{rrset_values}}, @{$existing->{rrset_values}};
+		}
+
+		$data->{$key} = $rr;
 	}
-
-	$data->{$key} = $rr;
 
 	return;
 }
@@ -349,16 +354,15 @@ sub __rrsetsDiffer {
 sub __rrset {
 	my ($name, $ttl, $type, $values, $domain) = @_;
 
+	my @rrs;
 	$values = [ $values ] if !ref $values;
 
 	if ($type eq 'TXT') {
 		$values = [ map { /^".*"$/ ? $_ : "\"$_\"" } @$values ];
 	} elsif ($type eq 'ALIAS') {
-		$type = 'A';
-		$values = [ map { __resolveName($_, $domain) } @$values ];
-	} elsif ($type eq 'ALIAS6') {
-		$type = 'AAAA';
-		$values = [ map { __resolveName6($_, $domain) } @$values ];
+		push @rrs,
+			@{__rrset($name, $ttl, 'A', [ map { __resolveName('A', $_, $domain) } @$values ], $domain)};
+		return \@rrs;
 	}
 
 	if (defined $ttl) {
@@ -373,27 +377,38 @@ sub __rrset {
 		$ttl = $MEDIUM;
 	}
 
-	return {
+	push @rrs, {
 		rrset_name => $name,
 		rrset_ttl => $ttl,
 		rrset_type => $type,
 		rrset_values => $values,
 	};
+
+	return \@rrs;
 }
 
-my %ipForName;
+my %answerForName;
 sub __resolveName {
-	my ($name, $domain) = @_;
+	my ($type, $name, $domain) = @_;
 
 	$name .= ".$domain" unless $name =~ /\.$/;
 
-	if (!defined $ipForName{$name}) {
+	if (!defined $answerForName{$name}) {
 		my $binIp = scalar gethostbyname($name) or die "Failed to resolve $name";
 		my $ip = inet_ntoa($binIp);
-		$ipForName{$name} = $ip;
+
+		my $res = $resolver->query("$name.", $type);
+		$answerForName{$name} = [ $res->answer ];
 	}
 
-	return $ipForName{$name};
+	foreach my $rr (@{$answerForName{$name}}) {
+		if ($rr->type eq $type) {
+			# TODO: multiple answers?
+			return $rr->address;
+		}
+	}
+
+	...
 }
 
 sub __flattenZone {
