@@ -111,6 +111,7 @@ sub loadZone {
 	my ($fqdn) = @_;
 
 	my %data;
+	$data{__ignore} = [ '@/NS' ];
 	loadFileRecursively($fqdn, "domains/$fqdn.yaml", \%data);
 
 	my $spf = delete $data{__spf};
@@ -355,6 +356,9 @@ sub __rrset {
 	} elsif ($type eq 'ALIAS') {
 		$type = 'A';
 		$values = [ map { __resolveName($_, $domain) } @$values ];
+	} elsif ($type eq 'ALIAS6') {
+		$type = 'AAAA';
+		$values = [ map { __resolveName6($_, $domain) } @$values ];
 	}
 
 	if (defined $ttl) {
