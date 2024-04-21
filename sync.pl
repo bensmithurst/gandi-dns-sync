@@ -366,6 +366,7 @@ sub __rrset {
 				push @rrs, @{__rrset($name, $ttl, $type, @resolved, $domain)};
 			}
 		}
+		die "Cannot find any records for alias $name in $domain" unless @rrs;
 		return \@rrs;
 	}
 
@@ -400,10 +401,10 @@ sub __resolveName {
 	if (!defined $answerForName{$name}{$type}) {
 		my $res = $resolver->query("$name.", $type);
 		if (!defined $res) {
-			die "Failed to resolve $name/$type";
+			$answerForName{$name}{$type} = [];
+		} else {
+			$answerForName{$name}{$type} = [ $res->answer ];
 		}
-
-		$answerForName{$name}{$type} = [ $res->answer ];
 	}
 
 	foreach my $rr (@{$answerForName{$name}{$type}}) {
