@@ -132,7 +132,7 @@ sub loadFileRecursively {
 
 	$depth = 0 unless defined $depth;
 
-	die if $depth > 1;
+	die if $depth > 2;
 
 	my $data = LoadFile($file);
 
@@ -205,7 +205,13 @@ sub loadSPF {
 
 	my $spfRR = $subdomain // '@';
 
+	if (!$zoneData->{__spf}->{$spfRR}) {
+		$zoneData->{__spf}->{$spfRR} = [];
+	}
+
 	foreach my $entry (@{$data->{spf}}) {
+		next unless defined $entry;
+
 		if ($entry =~ /^ip4:(.*)/) {
 			my $ip = $1;
 
