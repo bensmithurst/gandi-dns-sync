@@ -5,14 +5,14 @@ use warnings;
 
 use Data::Dumper;
 use English qw(-no_match_vars);
-use HTTP::Status qw(HTTP_NO_CONTENT HTTP_NOT_FOUND);
+use HTTP::Status qw(HTTP_NOT_FOUND);
 use IO::Dir;
 use JSON;
-use LWP::UserAgent;
 use Net::DNS::Resolver;
 use Readonly;
 use Socket;
 use Text::Diff;
+use Text::Glob qw(match_glob);
 use YAML qw(LoadFile);
 
 Readonly my $SHORT => 300;
@@ -68,7 +68,21 @@ sub syncDomain {
 
 	if ($localData->{__ignore}) {
 		foreach my $ignoredRR (@{$localData->{__ignore}}) {
-			if ($remoteData->{$ignoredRR}) {
+			if ($ignoredRR =~ /(.*\*.*)\/(.*)/) {
+				my ($ignoreName, $ignoreType) = ($1, $2);
+
+				while (my ($rrKey, $rr) = each %$remoteData) {
+					next unless $rrKey =~ /(.*)\/(.*)/;
+					my ($rrName, $rrType) = ($1, $2);
+
+					next unless $rrType eq $ignoreType;
+
+					if (match_glob($ignoreName, $rrName)) {
+						$localData->{$rrKey} = $remoteData->{$rrKey};
+					}
+
+				}
+			} elsif ($remoteData->{$ignoredRR}) {
 				$localData->{$ignoredRR} = $remoteData->{$ignoredRR};
 			}
 		}
@@ -298,25 +312,6 @@ sub promptRequest {
 	print "SKIPPED\n\n";
 	sleep 1;
 	return;
-}
-
-sub request {
-	my ($method, $path, $data) = @_;
-
-	my $response = rawRequest($method, $path, $data);
-
-	if (!$response->is_success) {
-		die "$method $path: ".$response->as_string();
-	}
-
-	if ($response->code == HTTP_NO_CONTENT) {
-		print "$method $path returned no data\n";
-		return undef;
-	}
-
-	my $decoded = decode_json($response->content);
-
-	return $decoded;
 }
 
 sub __rrsetsDiffer {
