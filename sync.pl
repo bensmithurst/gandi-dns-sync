@@ -15,14 +15,15 @@ use Socket;
 use Text::Diff;
 use YAML qw(LoadFile);
 
-Readonly my $API => 'https://api.gandi.net/v5';
 Readonly my $SHORT => 300;
 Readonly my $MEDIUM => 3600;
 Readonly my $LONG => 86400;
 
-my $KEY;
 my $ua;
 my $resolver = Net::DNS::Resolver->new;
+
+use FindBin qw($Bin);
+require "$Bin/common.pl";
 
 main();
 
@@ -277,17 +278,6 @@ sub loadRemoteZone {
 	return \%data;
 }
 
-sub init {
-	$ua = LWP::UserAgent->new;
-
-	my $fh = IO::File->new("$ENV{HOME}/.gandi-api-key", 'r') or die $!;
-	chop($KEY = $fh->getline());
-
-	$| = 1;
-
-	return;
-}
-
 sub promptRequest {
 	my ($method, $path, $data) = @_;
 
@@ -308,16 +298,6 @@ sub promptRequest {
 	print "SKIPPED\n\n";
 	sleep 1;
 	return;
-}
-
-sub rawRequest {
-	my ($method, $path, $data) = @_;
-
-	my $request = HTTP::Request->new($method, "$API/$path");
-	$request->header('Authorization', "Apikey $KEY");
-	$request->content(encode_json($data)) if defined $data;
-
-	return $ua->request($request);
 }
 
 sub request {
