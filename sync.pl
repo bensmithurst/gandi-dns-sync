@@ -77,7 +77,7 @@ sub syncDomain {
 
 					next unless $rrType eq $ignoreType;
 
-					if (match_glob($ignoreName, $rrName)) {
+					if (match_glob($ignoreName, $rrName) && !exists $localData->{$rrKey}) {
 						$localData->{$rrKey} = $remoteData->{$rrKey};
 					}
 
@@ -93,21 +93,34 @@ sub syncDomain {
 	my %allKeys = map { $_ => 1 } @allKeys;
 	my $changed;
 
+	my (@delete, @create, @update);
 	foreach my $key (sort keys %allKeys) {
 		if ($localData->{$key} && $remoteData->{$key}) {
 			my $rr = $localData->{$key};
 			if (__rrsetsDiffer($rr, $remoteData->{$key})) {
-				#promptRequest('PUT', "livedns/domains/$fqdn/records/$rr->{rrset_name}/$rr->{rrset_type}", $rr);
-				$changed = 1;
+				push @update, ["livedns/domains/$fqdn/records/$rr->{rrset_name}/$rr->{rrset_type}", $rr];
+				#$changed = 1;
 			}
 		} elsif ($localData->{$key}) {
-			#promptRequest('POST', "livedns/domains/$fqdn/records", $localData->{$key});
-			$changed = 1;
+			push @create, ["livedns/domains/$fqdn/records", $localData->{$key}];
+			#$changed = 1;
 		} else {
 			my $rr = $remoteData->{$key};
-			#promptRequest('DELETE', "livedns/domains/$fqdn/records/$rr->{rrset_name}/$rr->{rrset_type}");
-			$changed = 1;
+			push @delete, ["livedns/domains/$fqdn/records/$rr->{rrset_name}/$rr->{rrset_type}"];
+			#$changed = 1;
 		}
+	}
+
+	foreach my $delete (@delete) {
+		promptRequest('DELETE', @$delete);
+	}
+
+	foreach my $update (@update) {
+		promptRequest('PUT', @$update);
+	}
+
+	foreach my $create (@create) {
+		promptRequest('POST', @$create);
 	}
 
 	if ($changed) {
@@ -340,8 +353,15 @@ sub __rrset {
 
 	if ($type eq 'TXT') {
 		$values = [ map { /^".*"$/ ? $_ : "\"$_\"" } @$values ];
-	} elsif ($type eq 'ALIAS') {
-		foreach my $type ('A', 'AAAA') {
+	} elsif ($type =~ /^ALIAS(.*)/) {
+		my $type = $1;
+		my @types = ('A', 'AAAA');
+
+		if ($type =~ m#^/(\w+)$#) {
+			@types = ($1);
+		}
+
+		foreach my $type (@types) {
 			my @resolved = grep { defined $_ } map { __resolveName($type, $_, $domain) } @$values;
 			if (@resolved) {
 				push @rrs, @{__rrset($name, $ttl, $type, @resolved, $domain)};
