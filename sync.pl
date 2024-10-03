@@ -5,6 +5,7 @@ use warnings;
 
 use Data::Dumper;
 use English qw(-no_match_vars);
+use Getopt::Std;
 use HTTP::Status qw(HTTP_NOT_FOUND);
 use IO::Dir;
 use JSON;
@@ -24,6 +25,9 @@ my $resolver = Net::DNS::Resolver->new;
 
 use FindBin qw($Bin);
 require "$Bin/common.pl";
+
+my %opts;
+getopts('y', \%opts) or die;
 
 main();
 
@@ -315,7 +319,10 @@ sub promptRequest {
 		$encoded = substr($encoded, 0, 200).'...' if length($encoded) > 200;
 		print " with data: $encoded";
 	}
-	print "\n--- Execute? [y/N] ";
+	print "\n";
+	return request($method, $path, $data) if $opts{y};
+
+	print "--- Execute? [y/N] ";
 
 	my $answer = <STDIN>;
 	if ($answer && $answer =~ /^y/i) {
