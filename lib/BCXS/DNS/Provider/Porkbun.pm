@@ -68,17 +68,26 @@ sub createRecord {
 sub updateRecord {
 	my ($self, $rr, $zone) = @_;
 
-	#$self->deleteRecord($rr, $zone);
-	#$self->createRecord($rr, $zone);
-
 	if (scalar(@{$rr->values}) == 1) {
 		my $path = sprintf('editByNameType/%s/%s', $zone->fqdn, $rr->type);
 		$path .= sprintf('/%s', $rr->name) if $rr->name ne '@';
 
 		$self->__request($path, $self->__makeDataForRequest($rr, $rr->values->[0]));
 	} else {
-		die 'TODO';
+		$self->deleteRecord($rr, $zone);
+		$self->createRecord($rr, $zone);
 	}
+
+	return;
+}
+
+sub deleteRecord {
+	my ($self, $rr, $zone) = @_;
+
+	my $path = sprintf('deleteByNameType/%s/%s', $zone->fqdn, $rr->type);
+	$path .= sprintf('/%s', $rr->name) if $rr->name ne '@';
+
+	$self->__request($path, {});
 
 	return;
 }
