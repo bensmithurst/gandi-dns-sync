@@ -93,7 +93,6 @@ sub addSPF {
 	}
 
 	if (defined $entry) {
-		print "Adding SPF $name $entry\n";
 		push @{$self->{__spf}->{$name}}, $entry;
 	}
 

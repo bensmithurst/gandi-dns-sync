@@ -6,32 +6,15 @@ use warnings;
 use FindBin qw($Bin);
 use lib "$Bin/lib";
 
-use Data::Dumper;
 use English qw(-no_match_vars);
-use Getopt::Std;
 use IO::Dir;
-use JSON;
-use Net::DNS::Resolver;
-use Readonly;
-use Socket;
-use Text::Diff;
-use Text::Glob qw(match_glob);
 
 use BCXS::DNS::Provider::YAML;
 use BCXS::DNS::Zone;
 
-Readonly my $SHORT => 300;
-Readonly my $MEDIUM => 3600;
-Readonly my $LONG => 86400;
-
-my $ua;
-
 require "$Bin/common.pl";
 
 my $yaml = BCXS::DNS::Provider::YAML->new;
-
-my %opts;
-getopts('y', \%opts) or die;
 
 main();
 

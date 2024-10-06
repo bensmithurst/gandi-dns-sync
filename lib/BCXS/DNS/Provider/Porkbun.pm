@@ -46,9 +46,6 @@ sub loadZone {
 			$content = sprintf('%d %s', $record->{prio}, $record->{content});
 		}
 
-		print Data::Dumper::Dumper($record);
-		print "name is '$name'\n";
-
 		$zone->addRecord($name, $record->{type}, $record->{ttl}, [ $content ]);
 	}
 
@@ -144,7 +141,11 @@ sub __rawRequest {
 	$data->{secretapikey} = $self->secretKey;
 	$request->content(encode_json($data));
 
-	print "$path: ".$request->content."\n";
+	my %copy = %$data;
+	$copy{apikey} = 'REDACTED';
+	$copy{secretapikey} = 'REDACTED';
+
+	printf("%s: %s\n", $path, encode_json(\%copy));
 
 	return $self->ua->request($request);
 }

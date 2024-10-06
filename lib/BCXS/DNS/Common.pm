@@ -2,6 +2,7 @@ package BCXS::DNS::Common;
 use strict;
 
 use Moose;
+use Net::DNS::Resolver;
 
 my $resolver = Net::DNS::Resolver->new;
 my %answerForName;
