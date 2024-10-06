@@ -3,8 +3,8 @@
 use strict;
 use warnings;
 
-use FindBin qw($Bin);
-use lib "$Bin/lib";
+use FindBin qw($RealBin);
+use lib "$RealBin/lib";
 
 use English qw(-no_match_vars);
 use IO::Dir;
@@ -12,15 +12,13 @@ use IO::Dir;
 use BCXS::DNS::Provider::YAML;
 use BCXS::DNS::Zone;
 
-require "$Bin/common.pl";
-
 my $yaml = BCXS::DNS::Provider::YAML->new;
 
 main();
 
 # Sync DNS entries for every domain with a domains/$fqdn.yaml file.
 sub main {
-	init();
+	$OUTPUT_AUTOFLUSH = 1;
 
 	my $dir = IO::Dir->new('domains') or die "cannot opendir domains: $ERRNO";
 	while (defined (my $file = $dir->read())) {
