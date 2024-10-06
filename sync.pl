@@ -3,6 +3,9 @@
 use strict;
 use warnings;
 
+use FindBin qw($Bin);
+use lib "$Bin/lib";
+
 use Data::Dumper;
 use English qw(-no_match_vars);
 use Getopt::Std;
@@ -16,6 +19,9 @@ use Text::Diff;
 use Text::Glob qw(match_glob);
 use YAML qw(LoadFile);
 
+use BCXS::DNS::Provider::Porkbun;
+use BCXS::DNS::Provider::Gandi;
+
 Readonly my $SHORT => 300;
 Readonly my $MEDIUM => 3600;
 Readonly my $LONG => 86400;
@@ -23,8 +29,9 @@ Readonly my $LONG => 86400;
 my $ua;
 my $resolver = Net::DNS::Resolver->new;
 
-use FindBin qw($Bin);
 require "$Bin/common.pl";
+
+my $gandi = BCXS::DNS::Provider::Gandi->new;
 
 my %opts;
 getopts('y', \%opts) or die;
@@ -40,8 +47,13 @@ sub main {
 		next unless $file =~ /(.*)\.yaml$/i;
 		my $fqdn = $1;
 
-		createDomain($fqdn);
-		syncDomain($fqdn);
+		#createDomain($fqdn); TODO: where to create?
+		eval {
+			syncDomain($fqdn);
+		};
+		if (my $evalError = $EVAL_ERROR) {
+			print $evalError;
+		}
 	}
 
 	return;
@@ -68,7 +80,7 @@ sub syncDomain {
 
 	my $localData = loadZone($fqdn);
 
-	my $remoteData = loadRemoteZone($fqdn);
+	my $remoteData = $gandi->loadZone($fqdn);
 
 	if ($localData->{__ignore}) {
 		foreach my $ignoredRR (@{$localData->{__ignore}}) {
@@ -278,35 +290,6 @@ sub addRecord {
 	}
 
 	return;
-}
-
-sub loadRemoteZone {
-	my ($fqdn) = @_;
-
-	my $data = request('GET', "livedns/domains/$fqdn/records?per_page=1000");
-	my %data;
-
-	my $fh = IO::File->new("remote/$fqdn.txt", 'w') or die $!;
-
-	foreach my $rr (sort { ($a->{rrset_name} cmp $b->{rrset_name}) || ($a->{rrset_type} cmp $b->{rrset_type}) } @$data) {
-		$data{$rr->{rrset_name}.'/'.$rr->{rrset_type}} = $rr;
-
-		foreach my $val (sort @{$rr->{rrset_values}}) {
-			my $name = $rr->{rrset_name};
-			my $rr_fqdn;
-			if ($name eq '@') {
-				$rr_fqdn = "$fqdn.";
-			} else {
-				$rr_fqdn = "$name.$fqdn.";
-			}
-
-			printf $fh "%s %d IN %s %s\n", $rr_fqdn, $rr->{rrset_ttl}, $rr->{rrset_type}, $val;
-		}
-	}
-
-	$fh->close();
-
-	return \%data;
 }
 
 sub promptRequest {
