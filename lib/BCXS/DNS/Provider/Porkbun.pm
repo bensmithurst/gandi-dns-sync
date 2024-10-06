@@ -41,10 +41,15 @@ sub loadZone {
 			die "Bad name $name for zone $fqdn";
 		}
 
+		my $content = $record->{content};
+		if ($record->{type} eq 'MX') {
+			$content = sprintf('%d %s', $record->{prio}, $record->{content});
+		}
+
 		print Data::Dumper::Dumper($record);
 		print "name is '$name'\n";
 
-		$zone->addRecord($name, $record->{type}, $record->{ttl}, [ $record->{content} ]);
+		$zone->addRecord($name, $record->{type}, $record->{ttl}, [ $content ]);
 	}
 
 	return $zone;
@@ -54,22 +59,46 @@ sub createRecord {
 	my ($self, $rr, $zone) = @_;
 
 	foreach my $value (@{$rr->values}) {
-		my $data = {
-			name => $rr->name,
-			type => $rr->type,
-			ttl => $rr->ttl,
-			content => $value,
-		};
-
-		if (uc($rr->type) eq 'MX' && $value =~ /^(\d+)\s+(\S+)$/) {
-			$data->{content} = $2;
-			$data->{priority} = $1;
-		}
-
-		$self->__request(sprintf('create/%s', $zone->fqdn), $data);
+		$self->__request(sprintf('create/%s', $zone->fqdn), $self->__makeDataForRequest($rr, $value));
 	}
 
 	return;
+}
+
+sub updateRecord {
+	my ($self, $rr, $zone) = @_;
+
+	#$self->deleteRecord($rr, $zone);
+	#$self->createRecord($rr, $zone);
+
+	if (scalar(@{$rr->values}) == 1) {
+		my $path = sprintf('editByNameType/%s/%s', $zone->fqdn, $rr->type);
+		$path .= sprintf('/%s', $rr->name) if $rr->name ne '@';
+
+		$self->__request($path, $self->__makeDataForRequest($rr, $rr->values->[0]));
+	} else {
+		die 'TODO';
+	}
+
+	return;
+}
+
+sub __makeDataForRequest {
+	my ($self, $rr, $value) = @_;
+
+	my $data = {
+		name => $rr->name,
+		type => $rr->type,
+		ttl => $rr->ttl,
+		content => $value,
+	};
+
+	if (uc($rr->type) eq 'MX' && $value =~ /^(\d+)\s+(\S+)$/) {
+		$data->{content} = $2;
+		$data->{prio} = $1;
+	}
+
+	return $data;
 }
 
 sub __request {
