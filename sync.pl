@@ -79,76 +79,42 @@ sub createDomain {
 sub syncDomain {
 	my ($fqdn) = @_;
 
-	my $localData = loadZone($fqdn);
+	my $localZone = loadZone($fqdn);
 
-	my $remoteData = $gandi->loadZone($fqdn);
+	my $remoteZone = $gandi->loadZone($fqdn);
 
-	if ($localData->{__ignore}) {
-		foreach my $ignoredRR (@{$localData->{__ignore}}) {
-			if ($ignoredRR =~ /(.*\*.*)\/(.*)/) {
-				my ($ignoreName, $ignoreType) = ($1, $2);
+	foreach my $ignoredRR ($localZone->getIgnored()) {
+		if ($ignoredRR =~ /(.*\*.*)\/(.*)/) {
+			my ($ignoreName, $ignoreType) = ($1, $2);
 
-				while (my ($rrKey, $rr) = each %$remoteData) {
-					next unless $rrKey =~ /(.*)\/(.*)/;
-					my ($rrName, $rrType) = ($1, $2);
+			foreach my $rr ($remoteZone->getRecords()) {
+				next unless $rr->type eq $ignoreType;
 
-					next unless $rrType eq $ignoreType;
-
-					if (match_glob($ignoreName, $rrName) && !exists $localData->{$rrKey}) {
-						$localData->{$rrKey} = $remoteData->{$rrKey};
-					}
-
+				if (match_glob($ignoreName, $rr->name) && !$localZone->hasRecord($rr->name, $rr->type)) {
+					$localZone->addRecord($rr->name, $rr->type, $rr->ttl, $rr->values);
 				}
-			} elsif ($remoteData->{$ignoredRR}) {
-				$localData->{$ignoredRR} = $remoteData->{$ignoredRR};
-			}
-		}
-		delete $localData->{__ignore};
-	}
 
-	my @allKeys = (keys(%$localData), keys(%$remoteData));
-	my %allKeys = map { $_ => 1 } @allKeys;
-	my $changed;
-
-	my (@delete, @create, @update);
-	foreach my $key (sort keys %allKeys) {
-		if ($localData->{$key} && $remoteData->{$key}) {
-			my $rr = $localData->{$key};
-			if (__rrsetsDiffer($rr, $remoteData->{$key})) {
-				push @update, ["livedns/domains/$fqdn/records/$rr->{rrset_name}/$rr->{rrset_type}", $rr];
-				#$changed = 1;
 			}
-		} elsif ($localData->{$key}) {
-			push @create, ["livedns/domains/$fqdn/records", $localData->{$key}];
-			#$changed = 1;
-		} else {
-			my $rr = $remoteData->{$key};
-			push @delete, ["livedns/domains/$fqdn/records/$rr->{rrset_name}/$rr->{rrset_type}"];
-			#$changed = 1;
+		} elsif ($remoteZone->hasRecord($ignoredRR)) {
+			#$localData->{$ignoredRR} = $remoteData->{$ignoredRR};
+			## FIXME??
 		}
 	}
 
-	foreach my $delete (@delete) {
-		promptRequest('DELETE', @$delete);
+	foreach my $rr ($localZone->getRecords()) {
+		my $other = $remoteZone->getRecord($rr->name, $rr->type);
+
+		if (!$other) {
+			$remoteZone->createRecord($rr);
+		} elsif (!$other->equals($rr)) {
+			$remoteZone->updateRecord($rr);
+		}
 	}
 
-	foreach my $update (@update) {
-		promptRequest('PUT', @$update);
-	}
-
-	foreach my $create (@create) {
-		promptRequest('POST', @$create);
-	}
-
-	if ($changed) {
-		my @local = sort(__flattenZone($localData));
-		my @remote = sort(__flattenZone($remoteData));
-		print diff(\@remote, \@local);
-
-		promptRequest('PUT', "livedns/domains/$fqdn/records", { items => [ values %$localData ] });
-		# if No, should allow making individual changes?
-
-		loadRemoteZone($fqdn) if $changed;
+	foreach my $rr ($remoteZone->getRecords()) {
+		if (!$localZone->getRecord($rr->name, $rr->type)) {
+			$remoteZone->deleteRecord($rr);
+		}
 	}
 
 	return;
@@ -161,6 +127,8 @@ sub loadZone {
 
 	$zone->addIgnoredName('@', 'NS');
 	loadFileRecursively($fqdn, "domains/$fqdn.yaml", $zone);
+
+	$zone->finalizeSPF();
 
 	return $zone;
 }
@@ -279,31 +247,6 @@ sub addRecord {
 		$data->{$key} = $rr;
 	}
 
-	return;
-}
-
-sub promptRequest {
-	my ($method, $path, $data) = @_;
-
-	print "--------------\n";
-	print "$method $path";
-	if (defined $data) {
-		my $encoded = encode_json($data);
-		$encoded = substr($encoded, 0, 200).'...' if length($encoded) > 200;
-		print " with data: $encoded";
-	}
-	print "\n";
-	return request($method, $path, $data) if $opts{y};
-
-	print "--- Execute? [y/N] ";
-
-	my $answer = <STDIN>;
-	if ($answer && $answer =~ /^y/i) {
-		return request($method, $path, $data);
-	}
-
-	print "SKIPPED\n\n";
-	sleep 1;
 	return;
 }
 
