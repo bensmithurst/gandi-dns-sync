@@ -1,8 +1,9 @@
 package BCXS::DNS::Zone;
 use strict;
 
-use Moose;
+use BCXS::DNS::Common;
 use BCXS::DNS::RRSet;
+use Moose;
 
 has fqdn => (is => 'ro', isa => 'Str');
 
@@ -40,8 +41,7 @@ sub addRecord {
 
 		my $found;
 		foreach my $type (@types) {
-			# FIXME main:: call
-			my @resolved = grep { defined $_ } map { main::__resolveName($type, $_, $self->fqdn) } @$values;
+			my @resolved = grep { defined $_ } map { BCXS::DNS::Common::resolveName($type, $_, $self->fqdn) } @$values;
 			foreach my $resolved (@resolved) {
 				$self->addRecord($name, $type, $ttl, [ $resolved ]);
 				$found = 1;

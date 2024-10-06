@@ -6,7 +6,7 @@ use LWP::UserAgent;
 use Moose;
 use Readonly;
 use YAML;
-use HTTP::Status qw(HTTP_NO_CONTENT);
+use HTTP::Status qw(HTTP_NO_CONTENT HTTP_NOT_FOUND);
 
 has ua => (is => 'ro', isa => 'LWP::UserAgent', lazy => 1, default => sub { LWP::UserAgent->new });
 has key => (is => 'rw', isa => 'Str'); # TODO lazy
@@ -71,6 +71,22 @@ sub deleteRecord {
 	my ($self, $rr, $zone) = @_;
 
 	$self->__promptRequest('DELETE', sprintf('livedns/domains/%s/records/%s/%s', $zone->fqdn, $rr->name, $rr->type));
+
+	return;
+}
+
+# Create domain in LiveDNS if it doesn't already exist.
+# FIXME: unused, broken
+sub createDomain {
+	my ($fqdn) = @_;
+
+	my $existing = rawRequest('GET', "livedns/domains/$fqdn");
+	if ($existing->code == HTTP_NOT_FOUND) {
+		print "Trying to add $fqdn into LiveDNS...\n";
+		request('POST', 'livedns/domains', { fqdn => $fqdn });
+	} elsif (!$existing->is_success) {
+		die "Querying $fqdn failed: ".$existing->as_string();
+	}
 
 	return;
 }
