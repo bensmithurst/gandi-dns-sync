@@ -48,7 +48,7 @@ sub main {
 			syncDomain($fqdn);
 		};
 		if (my $evalError = $EVAL_ERROR) {
-			print $evalError;
+			print "Failed to sync $fqdn: $evalError\n";
 		}
 	}
 

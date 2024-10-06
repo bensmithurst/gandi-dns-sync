@@ -31,7 +31,9 @@ sub loadFileRecursively {
 	if ($depth == 0) {
 		my $provider = $data->{remote}->{name};
 		my $class = "BCXS::DNS::Provider::$provider";
-		$class->require();
+		if (!$class->require()) {
+			die $@;
+		}
 
 		$zone->remote($class->new);
 	}

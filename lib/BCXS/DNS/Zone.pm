@@ -67,7 +67,7 @@ sub addRecord {
 	if ($existing) {
 		push @{$existing->values}, @$values;
 	} else {
-		push @{$self->{__records}}, BCXS::DNS::RRSet->new(name => $name, type => $type, ttl => $ttl, values => $values);
+		push @{$self->{__records}}, BCXS::DNS::RRSet->new(name => $name, type => $type, ttl => $ttl, values => $values, zone => $self);
 	}
 
 	return;
