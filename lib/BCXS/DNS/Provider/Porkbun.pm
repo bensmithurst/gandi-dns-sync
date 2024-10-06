@@ -42,7 +42,7 @@ sub loadZone {
 		}
 
 		my $content = $record->{content};
-		if ($record->{type} eq 'MX') {
+		if ($record->{type} eq 'MX' || $record->{type} eq 'SRV') {
 			$content = sprintf('%d %s', $record->{prio}, $record->{content});
 		}
 
@@ -99,7 +99,7 @@ sub __makeDataForRequest {
 		content => $value,
 	};
 
-	if (uc($rr->type) eq 'MX' && $value =~ /^(\d+)\s+(\S+)$/) {
+	if ((uc($rr->type) eq 'MX' || uc($rr->type) eq 'SRV') && $value =~ /^(\d+)\s+(.*)$/) {
 		$data->{content} = $2;
 		$data->{prio} = $1;
 	}
