@@ -119,7 +119,7 @@ sub __promptRequest {
 
 	my $answer = <STDIN>;
 	if ($answer && $answer =~ /^y/i) {
-		return request($method, $path, $data);
+		return $self->__request($method, $path, $data);
 	}
 
 	print "SKIPPED\n\n";
