@@ -51,7 +51,7 @@ sub syncDomain {
 		if (!$other) {
 			$remoteZone->createRecord($rr);
 		} elsif (!$other->equals($rr)) {
-			$remoteZone->updateRecord($rr);
+			$remoteZone->updateRecord($rr, $other);
 		}
 	}
 

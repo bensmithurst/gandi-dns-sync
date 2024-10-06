@@ -132,8 +132,8 @@ sub createRecord {
 }
 
 sub updateRecord {
-	my ($self, $rr) = @_;
-	return $self->provider->updateRecord($rr, $self);
+	my ($self, $rr, $other) = @_;
+	return $self->provider->updateRecord($rr, $self, $other);
 }
 
 sub deleteRecord {

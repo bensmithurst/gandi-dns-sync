@@ -63,9 +63,9 @@ sub createRecord {
 }
 
 sub updateRecord {
-	my ($self, $rr, $zone) = @_;
+	my ($self, $rr, $zone, $other) = @_;
 
-	if (scalar(@{$rr->values}) == 1) {
+	if (scalar(@{$rr->values}) == 1 && scalar(@{$other->values}) == 1) {
 		my $path = sprintf('editByNameType/%s/%s', $zone->fqdn, $rr->type);
 		$path .= sprintf('/%s', $rr->name) if $rr->name ne '@';
 
