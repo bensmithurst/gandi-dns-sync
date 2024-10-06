@@ -216,90 +216,6 @@ sub loadSPF {
 	return;
 }
 
-sub addRecord {
-	my ($domain, $data, $name, $ttl, $type, $values) = @_;
-
-	my $rrs = __rrset($name, $ttl, $type, $values, $domain);
-
-	foreach my $rr (@$rrs) {
-		my $key = $rr->{rrset_name}.'/'.$rr->{rrset_type};
-
-		if (my $existing = $data->{$key}) {
-			push @{$rr->{rrset_values}}, @{$existing->{rrset_values}};
-		}
-
-		$data->{$key} = $rr;
-	}
-
-	return;
-}
-
-sub __rrsetsDiffer {
-	my ($localRR, $remoteRR) = @_;
-
-	return 1 if $localRR->{rrset_ttl} != $remoteRR->{rrset_ttl};
-
-	my @localVal = sort @{$localRR->{rrset_values}};
-	my @remoteVal = sort @{$remoteRR->{rrset_values}};
-
-	while (@localVal && @remoteVal) {
-		my $localVal = shift @localVal;
-		my $remoteVal = shift @remoteVal;
-
-		return 1 if $localVal ne $remoteVal;
-	}
-
-	return (scalar(@localVal) != scalar(@remoteVal));
-}
-
-sub __rrset {
-	my ($name, $ttl, $type, $values, $domain) = @_;
-
-	my @rrs;
-	$values = [ $values ] if !ref $values;
-
-	if ($type eq 'TXT') {
-		$values = [ map { /^".*"$/ ? $_ : "\"$_\"" } @$values ];
-	} elsif ($type =~ /^ALIAS(.*)/) {
-		my $type = $1;
-		my @types = ('A', 'AAAA');
-
-		if ($type =~ m#^/(\w+)$#) {
-			@types = ($1);
-		}
-
-		foreach my $type (@types) {
-			my @resolved = grep { defined $_ } map { __resolveName($type, $_, $domain) } @$values;
-			if (@resolved) {
-				push @rrs, @{__rrset($name, $ttl, $type, @resolved, $domain)};
-			}
-		}
-		die "Cannot find any records for alias $name in $domain" unless @rrs;
-		return \@rrs;
-	}
-
-	if (defined $ttl) {
-		if ($ttl eq 'SHORT') {
-			$ttl = $SHORT;
-		} elsif ($ttl eq 'MEDIUM') {
-			$ttl = $MEDIUM;
-		} elsif ($ttl eq 'LONG') {
-			$ttl = $LONG;
-		}
-	} else {
-		$ttl = $MEDIUM;
-	}
-
-	push @rrs, {
-		rrset_name => $name,
-		rrset_ttl => $ttl,
-		rrset_type => $type,
-		rrset_values => $values,
-	};
-
-	return \@rrs;
-}
-
 my %answerForName;
 sub __resolveName {
 	my ($type, $name, $domain) = @_;
@@ -326,19 +242,4 @@ sub __resolveName {
 	}
 
 	return undef;
-}
-
-sub __flattenZone {
-	my ($data) = @_;
-
-	my @list;
-
-	foreach my $key (sort keys %$data) {
-		my $rr = $data->{$key};
-		foreach my $val (sort @{$rr->{rrset_values}}) {
-			push @list, "$rr->{rrset_name} $rr->{rrset_ttl} $rr->{rrset_type} $val\n";
-		}
-	}
-
-	return @list;
 }
