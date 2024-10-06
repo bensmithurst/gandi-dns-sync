@@ -113,8 +113,7 @@ sub __request {
 	my $response = $self->__rawRequest($path, $data);
 
 	if (!$response->is_success) {
-		print "$path: ".$response->as_string()."\n";
-		return undef;
+		die "$path: ".$response->as_string();
 	}
 
 	if ($response->code == HTTP_NO_CONTENT) {
@@ -126,8 +125,7 @@ sub __request {
 
 	if ($decoded->{status} ne 'SUCCESS') {
 		print $response->content;
-		print "$path: failed\n";
-		return undef;
+		die "$path: failed";
 	}
 
 	return $decoded;
