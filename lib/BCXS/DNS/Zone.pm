@@ -19,9 +19,9 @@ sub addIgnoredName {
 	my ($self, $name, $type) = @_;
 
 	if ($type) {
-		push @{$self->{__ignore}}, BCXS::DNS::RRSet->new(name => $name, type => $type);
+		$self->{__ignore}->{lc $name}->{types}->{lc $type} = 1;
 	} else {
-		push @{$self->{__ignore}}, BCXS::DNS::RRSet->new(name => $name);
+		$self->{__ignore}->{lc $name}->{all} = 1;
 	}
 
 	return;
@@ -51,6 +51,10 @@ sub addRecord {
 		return;
 	}
 
+	if (!defined $ttl) {
+		$ttl = 'SHORT';
+	}
+
 	$ttl = $TTL_MAP{$ttl} if exists $TTL_MAP{$ttl};
 
 	if (uc($type) eq 'TXT') {
@@ -67,6 +71,12 @@ sub addRecord {
 	return;
 }
 
+sub isIgnored {
+	my ($self, $name, $type) = @_;
+
+	return ($self->{__ignore}->{lc $name}->{all} || $self->{__ignore}->{lc $name}->{types}->{lc $type});
+}
+
 sub hasRecord {
 	my ($self, $name, $type) = @_;
 
@@ -76,7 +86,14 @@ sub hasRecord {
 sub addSPF {
 	my ($self, $name, $entry) = @_;
 
-	push @{$self->{__spf}->{$name}}, $entry;
+	if (!defined $self->{__spf}->{$name}) {
+		$self->{__spf}->{$name} = [];
+	}
+
+	if (defined $entry) {
+		print "Adding SPF $name $entry\n";
+		push @{$self->{__spf}->{$name}}, $entry;
+	}
 
 	return;
 }
@@ -84,20 +101,12 @@ sub addSPF {
 sub finalizeSPF {
 	my ($self) = @_;
 
-	return unless $self->{__spf};
-
 	while (my ($rr, $entries) = each %{$self->{__spf}}) {
 		my $value = join(' ', 'v=spf1', @$entries, '-all');
 		$self->addRecord($rr, 'TXT', 'LONG', [ $value ]);
 	}
 
 	return;
-}
-
-sub getIgnored {
-	my ($self) = @_;
-
-	return @{$self->{__ignore}};
 }
 
 sub getRecords {

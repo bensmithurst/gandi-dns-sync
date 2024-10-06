@@ -83,24 +83,6 @@ sub syncDomain {
 
 	my $remoteZone = $gandi->loadZone($fqdn);
 
-	foreach my $ignoredRR ($localZone->getIgnored()) {
-		if ($ignoredRR =~ /(.*\*.*)\/(.*)/) {
-			my ($ignoreName, $ignoreType) = ($1, $2);
-
-			foreach my $rr ($remoteZone->getRecords()) {
-				next unless $rr->type eq $ignoreType;
-
-				if (match_glob($ignoreName, $rr->name) && !$localZone->hasRecord($rr->name, $rr->type)) {
-					$localZone->addRecord($rr->name, $rr->type, $rr->ttl, $rr->values);
-				}
-
-			}
-		} elsif ($remoteZone->hasRecord($ignoredRR)) {
-			#$localData->{$ignoredRR} = $remoteData->{$ignoredRR};
-			## FIXME??
-		}
-	}
-
 	foreach my $rr ($localZone->getRecords()) {
 		my $other = $remoteZone->getRecord($rr->name, $rr->type);
 
@@ -112,7 +94,7 @@ sub syncDomain {
 	}
 
 	foreach my $rr ($remoteZone->getRecords()) {
-		if (!$localZone->getRecord($rr->name, $rr->type)) {
+		if (!$localZone->getRecord($rr->name, $rr->type) && !$localZone->isIgnored($rr->name, $rr->type)) {
 			$remoteZone->deleteRecord($rr);
 		}
 	}
@@ -210,6 +192,8 @@ sub loadSPF {
 	return unless $data->{spf};
 
 	my $spfRR = $subdomain // '@';
+
+	$zone->addSPF($spfRR);
 
 	foreach my $entry (@{$data->{spf}}) {
 		next unless defined $entry;

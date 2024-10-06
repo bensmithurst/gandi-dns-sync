@@ -12,8 +12,6 @@ has values => (is => 'rw', isa => 'ArrayRef[Str]');
 sub equals {
 	my ($self, $other) = @_;
 
-	print Data::Dumper::Dumper([$self, $other]);
-
 	return 0 unless lc($self->name) eq lc($other->name);
 	return 0 unless lc($self->type) eq lc($other->type);
 	return 0 unless $self->ttl == $other->ttl;
