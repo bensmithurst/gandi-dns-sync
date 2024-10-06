@@ -19,8 +19,9 @@ use Text::Diff;
 use Text::Glob qw(match_glob);
 use YAML qw(LoadFile);
 
-use BCXS::DNS::Provider::Porkbun;
 use BCXS::DNS::Provider::Gandi;
+use BCXS::DNS::Provider::Porkbun;
+use BCXS::DNS::Zone;
 
 Readonly my $SHORT => 300;
 Readonly my $MEDIUM => 3600;
@@ -156,23 +157,16 @@ sub syncDomain {
 sub loadZone {
 	my ($fqdn) = @_;
 
-	my %data;
-	$data{__ignore} = [ '@/NS' ];
-	loadFileRecursively($fqdn, "domains/$fqdn.yaml", \%data);
+	my $zone = BCXS::DNS::Zone->new(fqdn => $fqdn);
 
-	my $spf = delete $data{__spf};
+	$zone->addIgnoredName('@', 'NS');
+	loadFileRecursively($fqdn, "domains/$fqdn.yaml", $zone);
 
-	if ($spf) {
-		while (my ($rr, $entries) = each %$spf) {
-			addRecord($fqdn, \%data, $rr, $LONG, 'TXT', join(' ', 'v=spf1', @$entries, '-all'));
-		}
-	}
-
-	return \%data;
+	return $zone;
 }
 
 sub loadFileRecursively {
-	my ($fqdn, $file, $zoneData, $subdomain, $depth) = @_;
+	my ($fqdn, $file, $zone, $subdomain, $depth) = @_;
 
 	$depth = 0 unless defined $depth;
 
@@ -182,7 +176,7 @@ sub loadFileRecursively {
 
 	if ($data->{include}) {
 		foreach my $inc (@{$data->{include}}) {
-			loadFileRecursively($fqdn, $inc->{file}, $zoneData, $inc->{subdomain}, $depth + 1);
+			loadFileRecursively($fqdn, $inc->{file}, $zone, $inc->{subdomain}, $depth + 1);
 		}
 
 	}
@@ -194,11 +188,11 @@ sub loadFileRecursively {
 				$name =~ s#/#.$subdomain/#;
 			}
 
-			push @{$zoneData->{__ignore}}, $name;
+			$zone->addIgnoredName($name);
 		}
 	}
 
-	loadSPF($zoneData, $data, $fqdn, $subdomain);
+	loadSPF($zone, $data, $fqdn, $subdomain);
 
 	if ($data->{records}) {
 		my @records;
@@ -235,7 +229,7 @@ sub loadFileRecursively {
 				push @$values, @{$rr->{values}};
 			}
 
-			addRecord($fqdn, $zoneData, $rr->{name}, $rr->{ttl}, $rr->{type}, $values);
+			$zone->addRecord($rr->{name}, $rr->{type}, $rr->{ttl}, $values);
 		}
 	}
 
@@ -243,15 +237,11 @@ sub loadFileRecursively {
 }
 
 sub loadSPF {
-	my ($zoneData, $data, $domain, $subdomain) = @_;
+	my ($zone, $data, $domain, $subdomain) = @_;
 
 	return unless $data->{spf};
 
 	my $spfRR = $subdomain // '@';
-
-	if (!$zoneData->{__spf}->{$spfRR}) {
-		$zoneData->{__spf}->{$spfRR} = [];
-	}
 
 	foreach my $entry (@{$data->{spf}}) {
 		next unless defined $entry;
@@ -265,9 +255,9 @@ sub loadSPF {
 				$ip = __resolveName('A', $ip, $domain);
 			}
 
-			push @{$zoneData->{__spf}->{$spfRR}}, "ip4:$ip";
+			$zone->addSPF($spfRR, "ip4:$ip");
 		} else {
-			push @{$zoneData->{__spf}->{$spfRR}}, $entry;
+			$zone->addSPF($spfRR, $entry);
 		}
 	}
 
