@@ -9,6 +9,8 @@ has fqdn => (is => 'ro', isa => 'Str');
 
 has provider => (is => 'ro'); # TODO type
 
+has remote => (is => 'rw'); # TODO type
+
 # TODO make configurable
 my %TTL_MAP = (
 	SHORT => 300,

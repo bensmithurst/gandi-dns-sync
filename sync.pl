@@ -17,8 +17,6 @@ use Socket;
 use Text::Diff;
 use Text::Glob qw(match_glob);
 
-use BCXS::DNS::Provider::Gandi;
-use BCXS::DNS::Provider::Porkbun;
 use BCXS::DNS::Provider::YAML;
 use BCXS::DNS::Zone;
 
@@ -31,7 +29,6 @@ my $ua;
 require "$Bin/common.pl";
 
 my $yaml = BCXS::DNS::Provider::YAML->new;
-my $gandi = BCXS::DNS::Provider::Gandi->new;
 
 my %opts;
 getopts('y', \%opts) or die;
@@ -63,7 +60,7 @@ sub syncDomain {
 
 	my $localZone = $yaml->loadZone($fqdn);
 
-	my $remoteZone = $gandi->loadZone($fqdn);
+	my $remoteZone = $localZone->remote->loadZone($fqdn);
 
 	foreach my $rr ($localZone->getRecords()) {
 		my $other = $remoteZone->getRecord($rr->name, $rr->type);

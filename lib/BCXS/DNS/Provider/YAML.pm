@@ -4,6 +4,7 @@ use strict;
 use BCXS::DNS::Common;
 use Moose;
 use YAML qw(LoadFile);
+use UNIVERSAL::require;
 
 sub loadZone {
 	my ($self, $fqdn) = @_;
@@ -26,6 +27,14 @@ sub loadFileRecursively {
 	die if $depth > 2;
 
 	my $data = LoadFile($file);
+
+	if ($depth == 0) {
+		my $provider = $data->{remote}->{name};
+		my $class = "BCXS::DNS::Provider::$provider";
+		$class->require();
+
+		$zone->remote($class->new);
+	}
 
 	if ($data->{include}) {
 		foreach my $inc (@{$data->{include}}) {
