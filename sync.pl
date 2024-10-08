@@ -43,6 +43,12 @@ sub syncDomain {
 
 	my $remoteZone = $localZone->remote->loadZone($fqdn);
 
+	foreach my $rr ($remoteZone->getRecords()) {
+		if (!$localZone->getRecord($rr->name, $rr->type) && !$localZone->isIgnored($rr->name, $rr->type)) {
+			$remoteZone->deleteRecord($rr);
+		}
+	}
+
 	foreach my $rr ($localZone->getRecords()) {
 		my $other = $remoteZone->getRecord($rr->name, $rr->type);
 
@@ -50,12 +56,6 @@ sub syncDomain {
 			$remoteZone->createRecord($rr);
 		} elsif (!$other->equals($rr)) {
 			$remoteZone->updateRecord($rr, $other);
-		}
-	}
-
-	foreach my $rr ($remoteZone->getRecords()) {
-		if (!$localZone->getRecord($rr->name, $rr->type) && !$localZone->isIgnored($rr->name, $rr->type)) {
-			$remoteZone->deleteRecord($rr);
 		}
 	}
 
