@@ -46,13 +46,8 @@ sub loadFileRecursively {
 	}
 
 	if ($data->{ignore}) {
-		foreach my $ignoredRR (@{$data->{ignore}}) {
-			my $name = $ignoredRR;
-			if ($subdomain) {
-				$name =~ s#/#.$subdomain/#;
-			}
-
-			$zone->addIgnoredName($name);
+		foreach my $rr (@{$data->{ignore}}) {
+			$zone->addIgnoredName($rr->{name}, $rr->{type});
 		}
 	}
 
