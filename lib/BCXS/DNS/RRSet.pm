@@ -23,6 +23,16 @@ sub equals {
 	return join($uniqueSeparator, sort @{$self->values}) eq join($uniqueSeparator, sort @{$other->values});
 }
 
+sub compare {
+	my ($self, $other) = @_;
+
+	my $d;
+	return $d if ($d = ($self->name cmp $other->name));
+	return $d if ($d = ($self->type cmp $other->type));
+
+	return 0;
+}
+
 sub getFQDN {
 	my ($self) = @_;
 
