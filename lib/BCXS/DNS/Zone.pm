@@ -33,7 +33,7 @@ sub addIgnoredName {
 sub addRecord {
 	my ($self, $name, $type, $ttl, $values) = @_;
 
-	if ($type =~ /^ALIAS(.*)/i) {
+	if ($type =~ /^_ALIAS(.*)/i) {
 		$type = $1;
 		my @types = ('A', 'AAAA');
 
