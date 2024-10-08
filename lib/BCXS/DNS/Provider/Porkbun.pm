@@ -93,11 +93,14 @@ sub __makeDataForRequest {
 	my ($self, $rr, $value) = @_;
 
 	my $data = {
-		name => $rr->name,
 		type => $rr->type,
 		ttl => $rr->ttl,
 		content => $value,
 	};
+
+	if ($rr->name ne '@') {
+		$data->{name} = $rr->name;
+	}
 
 	if ((uc($rr->type) eq 'MX' || uc($rr->type) eq 'SRV') && $value =~ /^(\d+)\s+(.*)$/) {
 		$data->{content} = $2;
