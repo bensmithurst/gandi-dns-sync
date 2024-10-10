@@ -51,7 +51,6 @@ sub loadFileRecursively {
 
 	if (my $ttlMap = $data->{ttl_map}) {
 		while (my ($key, $value) = each %$ttlMap) {
-			print "$key/$value\n";
 			$zone->addTTLMap($key, $value);
 		}
 	}
@@ -104,7 +103,7 @@ sub loadFileRecursively {
 				$ttl = $rr->{ttl};
 			}
 
-			$zone->addRecord($rr->{name}, $rr->{type}, $rr->{ttl}, $values);
+			$zone->addRecord($rr->{name}, $rr->{type}, $ttl, $values);
 		}
 	}
 

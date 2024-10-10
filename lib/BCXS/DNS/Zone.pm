@@ -54,16 +54,13 @@ sub addRecord {
 		return;
 	}
 
-	if (!defined $ttl) {
-		$ttl = 'SHORT';
-	}
-
-	if ($self->{__ttlMap} && defined $self->{__ttlMap}->{$ttl}) {
+	if (defined($ttl) && $self->{__ttlMap} && defined $self->{__ttlMap}->{$ttl}) {
 		$ttl = $self->{__ttlMap}->{$ttl};
 	}
 
-	if ($ttl !~ /^\d+$/) {
-		die "Invalid ttl '$ttl' on $name/$type";
+	if (!defined($ttl) || $ttl !~ /^\d+$/) {
+		$ttl = defined($ttl) ? "'$ttl'" : '<undef>';
+		die "Invalid ttl $ttl on $name/$type";
 	}
 
 	if (uc($type) eq 'TXT') {
