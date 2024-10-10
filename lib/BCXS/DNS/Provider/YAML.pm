@@ -42,7 +42,13 @@ sub loadFileRecursively {
 		foreach my $inc (@{$data->{include}}) {
 			$self->loadFileRecursively($fqdn, $inc->{file}, $zone, $inc->{subdomain}, $depth + 1);
 		}
+	}
 
+	if (my $ttlMap = $data->{ttl_map}) {
+		while (my ($key, $value) = each %$ttlMap) {
+			print "$key/$value\n";
+			$zone->addTTLMap($key, $value);
+		}
 	}
 
 	if ($data->{ignore}) {

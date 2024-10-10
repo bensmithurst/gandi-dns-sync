@@ -11,13 +11,6 @@ has provider => (is => 'ro'); # TODO type
 
 has remote => (is => 'rw'); # TODO type
 
-# TODO make configurable
-my %TTL_MAP = (
-	SHORT => 300,
-	MEDIUM => 3600,
-	LONG => 86400,
-);
-
 sub addIgnoredName {
 	my ($self, $name, $type) = @_;
 
@@ -26,6 +19,14 @@ sub addIgnoredName {
 	} else {
 		$self->{__ignore}->{lc $name}->{all} = 1;
 	}
+
+	return;
+}
+
+sub addTTLMap {
+	my ($self, $key, $value) = @_;
+
+	$self->{__ttlMap}->{$key} = $value;
 
 	return;
 }
@@ -57,7 +58,13 @@ sub addRecord {
 		$ttl = 'SHORT';
 	}
 
-	$ttl = $TTL_MAP{$ttl} if exists $TTL_MAP{$ttl};
+	if ($self->{__ttlMap} && defined $self->{__ttlMap}->{$ttl}) {
+		$ttl = $self->{__ttlMap}->{$ttl};
+	}
+
+	if ($ttl !~ /^\d+$/) {
+		die "Invalid ttl '$ttl' on $name/$type";
+	}
 
 	if (uc($type) eq 'TXT') {
 		$values = [ map { /^".*"$/ ? $_ : "\"$_\"" } @$values ];
