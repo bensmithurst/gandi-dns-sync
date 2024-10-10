@@ -20,7 +20,7 @@ sub loadZone {
 }
 
 sub loadFileRecursively {
-	my ($self, $fqdn, $file, $zone, $subdomain, $depth) = @_;
+	my ($self, $fqdn, $file, $zone, $subdomain, $defaultTTL, $depth) = @_;
 
 	$depth = 0 unless defined $depth;
 
@@ -38,9 +38,14 @@ sub loadFileRecursively {
 		$zone->remote($class->new);
 	}
 
+	# TTL at the top level defines the default TTL for rows within this file, and all include files.
+	if (defined $data->{ttl}) {
+		$defaultTTL = $data->{ttl};
+	}
+
 	if ($data->{include}) {
 		foreach my $inc (@{$data->{include}}) {
-			$self->loadFileRecursively($fqdn, $inc->{file}, $zone, $inc->{subdomain}, $depth + 1);
+			$self->loadFileRecursively($fqdn, $inc->{file}, $zone, $inc->{subdomain}, $defaultTTL, $depth + 1);
 		}
 	}
 
@@ -92,6 +97,11 @@ sub loadFileRecursively {
 				push @$values, $rr->{value};
 			} else {
 				push @$values, @{$rr->{values}};
+			}
+
+			my $ttl = $defaultTTL;
+			if (defined $rr->{ttl}) {
+				$ttl = $rr->{ttl};
 			}
 
 			$zone->addRecord($rr->{name}, $rr->{type}, $rr->{ttl}, $values);
