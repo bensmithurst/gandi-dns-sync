@@ -78,6 +78,10 @@ sub loadFileRecursively {
 				$rr->{values}->[$i] =~ s/\$domain\b/$fqdn/i;
 			}
 
+			if (defined $rr->{value}) {
+				$rr->{value} =~ s/\$domain\b/$fqdn/i;
+			}
+
 			if ($rr->{name} =~ /^(.*?)(\d+)\.\.(\d+)(.*)$/) {
 				my ($pre, $low, $high, $suf) = ($1, $2, $3, $4);
 				foreach my $n ($low .. $high) {
