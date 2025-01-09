@@ -69,7 +69,7 @@ sub syncDomain {
 
 	my @lines;
 	foreach my $rr (sort { $a->compare($b) } $remoteZone->getRecords()) {
-		foreach my $value (@{$rr->values}) {
+		foreach my $value (sort @{$rr->values}) {
 			push @lines, sprintf("%s. %d IN %s %s\n",
 				$rr->getFQDN(), $rr->ttl, $rr->type, $value);
 		}
